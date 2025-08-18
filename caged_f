@@ -1,0 +1,198 @@
+# -*- coding: utf-8 -*-
+
+import pandas as pd
+import unicodedata
+import re
+import matplotlib.pyplot as plt
+import numpy as np
+
+# --- Visão Geral do Script ---
+# Este script processa e combina dados do Cadastro Geral de Empregados e Desempregados (CAGED)
+# e de projetos de educação profissionalizante do Instituto Alpargatas (IA).
+# O objetivo é analisar a evolução dos projetos do IA e, opcionalmente, correlacionar a atuação
+# da organização com dados de emprego e desemprego, como admissões e desligamentos.
+
+# --- Seção 1: Funções de Apoio e Carregamento de Dados ---
+# Esta seção define as funções de limpeza e padronização, e carrega os arquivos de dados.
+
+def normalize_city_name(city):
+    """
+    Objetivo: Padronizar nomes de cidades para permitir a junção (merge)
+    com outras bases de dados.
+
+    Detalhes:
+    - Converte o nome da cidade para string e remove caracteres especiais.
+    - Normaliza a string para remover acentos e caracteres diacríticos.
+    - Remove caracteres que não sejam letras ou espaços e converte para maiúsculas.
+    - Unifica múltiplos espaços em um único e remove espaços nas bordas.
+    """
+    if pd.isna(city):
+        return None
+    city = str(city).replace('*', '').strip()
+    city = str(unicodedata.normalize('NFKD', city).encode('ascii', 'ignore').decode('utf-8'))
+    city = re.sub(r'[^a-zA-Z\s]', '', city)
+    return ' '.join(city.upper().split())
+
+# Simulação da leitura do arquivo do CAGED.
+# Esta parte do código simula o carregamento do arquivo real para fins de demonstração,
+# lidando com possíveis erros de arquivo não encontrado.
+try:
+    df_caged = pd.read_excel(
+        "data/MT/3-tabelas_Junho de 2025 - Site.xlsx",
+        sheet_name="Tabela 8.1",
+        header=5
+    )
+except FileNotFoundError:
+    print("Erro: O arquivo '3-tabelas_Junho de 2025 - Site.xlsx' não foi encontrado.")
+    exit()
+
+# Dicionários para armazenar os DataFrames de projetos do IA e os resultados processados.
+dataframes_ia = {}
+dataframes_output = {}
+ia_file_path = "data/Projetos_de_Atuac807a771o_-_IA_-_2020_a_2025 (1).xlsx"
+
+# Tentar carregar os dados do Instituto Alpargatas (IA) para cada ano de 2022 a 2025.
+try:
+    dataframes_ia['2022'] = pd.read_excel(ia_file_path, sheet_name="2022-Ed.Profissionalizante", header=5)
+    dataframes_ia['2023'] = pd.read_excel(ia_file_path, sheet_name="2023-Ed.Profissionalizante", header=5)
+    dataframes_ia['2024'] = pd.read_excel(ia_file_path, sheet_name="2024-Ed.Profissionalizante", header=5)
+    dataframes_ia['2025'] = pd.read_excel(ia_file_path, sheet_name="2025-Ed.Profissionalizante ", header=5)
+except FileNotFoundError as e:
+    print(f"Erro: O arquivo '{ia_file_path}' não foi encontrado. Detalhes: {e}")
+    exit()
+
+# Dicionário para mapear as posições (índices) das colunas e seus novos nomes,
+# facilitando a seleção de dados de diferentes planilhas.
+col_indices = {
+    '2022': {'indices': [3, 4, 5], 'nomes': ['CURSOS', 'TURMAS', 'BENEFICIADOS']},
+    '2023': {'indices': [3, 4, 5, 15], 'nomes': ['CURSOS', 'TURMAS', 'BENEFICIADOS', 'DESISTENTES']},
+    '2024': {'indices': [4, 5, 6, 14], 'nomes': ['CURSOS', 'TURMAS', 'BENEFICIADOS', 'DESISTENTES']},
+    '2025': {'indices': [4, 5, 6, 14], 'nomes': ['CURSOS', 'TURMAS', 'BENEFICIADOS', 'DESISTENTES']}
+}
+
+# --- Seção 2: Processamento e Mesclagem de Dados ---
+# Esta seção limpa e prepara os dados do CAGED e do IA, e realiza a junção.
+
+# 1. Limpeza e Padronização dos Dados do CAGED
+# Extrai o nome do município da coluna 'Unnamed: 3' e padroniza.
+df_caged['Município'] = df_caged['Unnamed: 3'].astype(str).str.split('-').str[1].str.strip()
+caged_cities_set = {normalize_city_name(city) for city in df_caged['Município'].unique() if pd.notna(city)}
+
+# Seleciona as colunas de Admissões e Desligamentos, converte para numérico e limpa.
+col_admissoes = 'Admissões.67'
+col_desligamentos = 'Desligamentos.67'
+df_caged_limpo = df_caged[['Município', col_admissoes, col_desligamentos]].copy()
+df_caged_limpo.columns = ['CIDADES', 'ADMISSOES', 'DESLIGAMENTOS']
+
+# Trata a formatação numérica e aplica a função de padronização de nomes.
+df_caged_limpo['ADMISSOES'] = pd.to_numeric(df_caged_limpo['ADMISSOES'].astype(str).str.replace('.', '', regex=False), errors='coerce').fillna(0).astype(int)
+df_caged_limpo['DESLIGAMENTOS'] = pd.to_numeric(df_caged_limpo['DESLIGAMENTOS'].astype(str).str.replace('.', '', regex=False), errors='coerce').fillna(0).astype(int)
+# Realiza a divisão dos valores de emprego por 10, conforme orientação da atividade.
+df_caged_limpo['ADMISSOES'] = df_caged_limpo['ADMISSOES'] / 10
+df_caged_limpo['DESLIGAMENTOS'] = df_caged_limpo['DESLIGAMENTOS'] / 10
+df_caged_limpo['CIDADES_NORMALIZADAS'] = df_caged_limpo['CIDADES'].apply(normalize_city_name)
+df_caged_limpo = df_caged_limpo.dropna(subset=['CIDADES_NORMALIZADAS'])
+df_caged_limpo = df_caged_limpo.groupby('CIDADES_NORMALIZADAS').sum().reset_index()
+
+# 2. Iteração e Mesclagem dos Dados do IA com o CAGED
+# Itera sobre cada ano (2022-2025) para processar os dados de projetos do IA.
+for year, df in dataframes_ia.items():
+    print(f"--- Processando o ano de {year} ---")
+
+    # Renomeia a coluna de cidades de forma dinâmica, pois a posição varia entre os anos.
+    if year in ["2024", "2025"]:
+        df = df.rename(columns={df.columns[1]: 'CIDADES'})
+    else:
+        df = df.rename(columns={df.columns[0]: 'CIDADES'})
+
+    # Padroniza os nomes das cidades e filtra o DataFrame para incluir apenas
+    # os municípios presentes na base do CAGED.
+    df['CIDADES_NORMALIZADAS'] = df['CIDADES'].apply(normalize_city_name)
+    df_filtered = df[df['CIDADES_NORMALIZADAS'].isin(caged_cities_set)].copy()
+
+    if year in col_indices:
+        indices = col_indices[year]['indices']
+        nomes_coluna = col_indices[year]['nomes']
+
+        # Seleciona as colunas de interesse.
+        cols_to_select = ['CIDADES', 'CIDADES_NORMALIZADAS'] + list(df_filtered.columns[indices])
+        df_final = df_filtered[cols_to_select].copy()
+        
+        # Renomeia as colunas selecionadas para nomes padronizados.
+        df_final.columns = ['CIDADES', 'CIDADES_NORMALIZADAS'] + nomes_coluna
+
+        if 'DESISTENTES' in df_final.columns:
+            df_final['DESISTENTES'] = df_final['DESISTENTES'].fillna(0).astype(int)
+
+        # Mescla o DataFrame do IA com o DataFrame limpo do CAGED usando
+        # a coluna de cidade padronizada.
+        df_final = pd.merge(
+            df_final,
+            df_caged_limpo,
+            on='CIDADES_NORMALIZADAS',
+            how='left'
+        )
+        
+        # Remove colunas auxiliares e renomeia a coluna de cidades.
+        df_final = df_final.drop(columns=['CIDADES_NORMALIZADAS', 'CIDADES_x'], errors='ignore')
+        df_final = df_final.rename(columns={'CIDADES_y': 'CIDADES'})
+
+        print(f"DataFrame para o ano {year} criado com sucesso, incluindo dados do CAGED.")
+        print(df_final.head())
+        print("\n" + "="*50 + "\n")
+
+        # Armazena o DataFrame final processado para uso posterior nos gráficos.
+        dataframes_output[year] = df_final
+    else:
+        print(f"Índices de colunas não especificados para o ano {year}.")
+        print("\n" + "="*50 + "\n")
+
+# --- Seção 3: Geração dos Gráficos de Análise Exploratória ---
+# Esta seção consolida os dados de todos os anos e gera visualizações.
+
+# 1. Preparar os dados para a evolução de cursos, turmas e beneficiados
+cursos_data = []
+for year, df in dataframes_output.items():
+    if 'CURSOS' in df.columns and 'TURMAS' in df.columns and 'BENEFICIADOS' in df.columns:
+        cursos_data.append({
+            'Ano': int(year),
+            'Cursos': df['CURSOS'].sum(),
+            'Turmas': df['TURMAS'].sum(),
+            'Beneficiados': df['BENEFICIADOS'].sum()
+        })
+
+df_evolucao_cursos = pd.DataFrame(cursos_data).set_index('Ano')
+
+# 2. Preparar os dados para a evolução de desistentes
+desistentes_data = []
+for year, df in dataframes_output.items():
+    if 'DESISTENTES' in df.columns:
+        desistentes_data.append({
+            'Ano': int(year),
+            'Desistentes': df['DESISTENTES'].sum()
+        })
+        
+df_evolucao_desistentes = pd.DataFrame(desistentes_data).set_index('Ano')
+
+# Geração do Gráfico Consolidado de Evolução Anual
+# Mescla os dados de cursos e desistentes em um único DataFrame para plotagem.
+df_consolidado = df_evolucao_cursos.merge(df_evolucao_desistentes, left_index=True, right_index=True, how='outer')
+
+plt.style.use('seaborn-v0_8-whitegrid')
+fig, ax = plt.subplots(figsize=(12, 7))
+
+# Plota as linhas para Cursos, Turmas e Beneficiados.
+df_consolidado[['Cursos', 'Turmas', 'Beneficiados']].plot(ax=ax, marker='o', linestyle='-')
+# Plota a linha para Desistentes com uma cor e estilo de linha diferentes.
+df_consolidado['Desistentes'].plot(ax=ax, marker='o', linestyle='--', color='red')
+
+ax.set_title('Evolução Anual dos Programas Profissionalizantes (2022-2025)', fontsize=16)
+ax.set_xlabel('Ano', fontsize=12)
+ax.set_ylabel('Quantidade', fontsize=12)
+ax.legend(title='Indicadores', loc='upper left')
+
+# Configura os ticks do eixo X para os anos de 2022 a 2025.
+plt.xticks(df_consolidado.index)
+
+plt.tight_layout()
+plt.show()
