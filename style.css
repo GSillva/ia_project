@@ -1,0 +1,23 @@
+
+    /* Cor de fundo principal */
+    .stApp {
+        background-color: #FFFFFF;
+    }
+    /* Cor primária para títulos e elementos de destaque */
+    h1, h2, h3 {
+        color: #FF6600; /* Laranja Vibrante */
+    }
+    /* Cor do texto principal */
+    .stMarkdown, .stDataFrame, div.st-bk {
+        color: #333333; /* Cinza Escuro */
+    }
+    /* Estilo da Sidebar */
+    .css-1d391kg {
+        background-color: #F5F5F5; /* Cinza claro de fundo */
+    }
+    /* Botões e elementos interativos */
+    .stButton>button {
+        background-color: #005A9C; /* Azul Corporativo */
+        color: white;
+    }
+    
