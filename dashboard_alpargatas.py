@@ -434,7 +434,7 @@ apply_custom_css()
 df_vulnerability = load_vulnerability_data()
 df_courses = load_courses_data()
 
-rais_file_path = 'file_path_rais.xlsx'
+rais_file_path = 'tabelas-rais-2024-parcial.xlsx'
 df_economic = load_rais_economic_data(rais_file_path)
 
 # Configuração da Barra Lateral (Sidebar)
@@ -472,4 +472,5 @@ elif selecao == "Fase 3: Análise de Maturidade Institucional":
     show_fase3(df_vulnerability)
 elif selecao == "Fase 4: Alinhamento Estratégico de Cursos":
     show_fase4(df_vulnerability, df_economic, df_courses)
+
 
