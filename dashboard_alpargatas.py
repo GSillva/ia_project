@@ -116,9 +116,7 @@ def load_courses_data():
 
 @st.cache_data
 def load_rais_economic_data(file_path):
-    """
-    Carrega e processa dados de empregos por setor a partir de um arquivo da RAIS.
-    """
+   
     try:
         df = pd.read_excel(file_path, sheet_name='TABELA 4', skiprows=12)
 
@@ -436,7 +434,7 @@ apply_custom_css()
 df_vulnerability = load_vulnerability_data()
 df_courses = load_courses_data()
 
-rais_file_path = 'tabelas-rais-2024-parcial.xlsx'
+rais_file_path = 'file_path_rais.xlsx'
 df_economic = load_rais_economic_data(rais_file_path)
 
 # Configuração da Barra Lateral (Sidebar)
