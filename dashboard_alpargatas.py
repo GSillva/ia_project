@@ -5,16 +5,21 @@ import folium
 from streamlit_folium import st_folium
 from PIL import Image
 import io
+import os # <-- ADICIONE ESTA LINHA
+
 
 # --- Configuração da Página e Estilo ---
 st.set_page_config(
-    page_title="BI de Diagnóstico EJA - Instituto Alpargatas",
+    page_title="BI de Diagnóstico da Educação Profissionalizante - Instituto Alpargatas",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 # Função para injetar CSS customizado com a identidade visual do Instituto Alpargatas
+# Função para injetar CSS customizado com a identidade visual do Instituto Alpargatas
+# Função para injetar CSS customizado com a identidade visual do Instituto Alpargatas
+
 def apply_custom_css():
     """Aplica a identidade visual do Instituto Alpargatas via CSS."""
     st.markdown("""
@@ -38,13 +43,15 @@ def apply_custom_css():
                 background-color: var(--light-gray-bg);
             }
 
-            /* Títulos */
-            h1, h2 {
-                color: var(--primary-orange);
+            /* Títulos (funciona com st.title, st.header, st.subheader e markdown ##) */
+            h1, h2, h3,
+            [data-testid="stMarkdown"] h1,
+            [data-testid="stMarkdown"] h2 {
+                color: var(--primary-orange) !important;
                 font-weight: bold;
             }
-            h3 {
-                color: var(--corporate-blue);
+            h3, [data-testid="stMarkdown"] h3 {
+                color: var(--corporate-blue) !important;
                 font-weight: bold;
             }
 
@@ -80,13 +87,19 @@ def apply_custom_css():
         </style>
     """, unsafe_allow_html=True)
 
+
+
+
+
 # --- Funções de Carregamento e Processamento de Dados ---
 @st.cache_data
 def load_vulnerability_data():
     """
     Carrega e limpa os dados de vulnerabilidade social e educacional.
-
+    
+    
     Dados extraídos das análises de analise_educacional.py
+
     """
     data = {
         'municipio': ['Itatuba', 'Mogeiro', 'Ingá', 'Bananeiras', 'Alagoa Nova', 'Serra Redonda', 'Caturité', 'Lagoa Seca', 'Queimadas', 'Santa Rita', 'Guarabira', 'Carpina', 'Campina Grande', 'João Pessoa', 'Montes Claros', 'Cabaceiras'],
@@ -107,16 +120,29 @@ def load_vulnerability_data():
 @st.cache_data
 def load_courses_data():
     """Carrega e processa os dados de cursos técnicos."""
+   
     # (O conteúdo da sua string de dados de cursos permanece o mesmo)
     df = pd.read_csv('cursos_encontrados.csv', sep=';')
     
     df['MUNICÍPIO_UPPER'] = df['MUNICÍPIO'].str.strip().str.upper()
     return df
-    
 
 @st.cache_data
+# REMOVA A FUNÇÃO ANTIGA:
+# @st.cache_data
+# def load_economic_data():
+#     """Carrega dados da matriz econômica local."""
+#     data = { ... }
+#     df = pd.DataFrame(data)
+#     ...
+#     return df
+
+# ADICIONE ESTA NOVA FUNÇÃO NO LUGAR:
+@st.cache_data
 def load_rais_economic_data(file_path):
-   
+    """
+    Carrega e processa dados de empregos por setor a partir de um arquivo da RAIS.
+    """
     try:
         df = pd.read_excel(file_path, sheet_name='TABELA 4', skiprows=12)
 
@@ -160,14 +186,15 @@ def get_sector_to_eixo_mapping():
         'Serviços': ['TURISMO, HOSPITALIDADE E LAZER', 'GESTÃO E NEGÓCIOS', 'INFORMAÇÃO E COMUNICAÇÃO', 'AMBIENTE E SAÚDE'],
         'Comércio': ['GESTÃO E NEGÓCIOS'],
         'Agropecuária': ['RECURSOS NATURAIS', 'PRODUÇÃO ALIMENTÍCIA'],
-        'Indústria': ['CONTROLE E PROCESSOS INDUSTRIAIS', 'PRODUÇÃO INDUSTRIAL', 'INFRAESTRUTURA']
+        'Industria': ['CONTROLE E PROCESSOS INDUSTRIAIS', 'PRODUÇÃO INDUSTRIAL'],
+        'Construcao': ['INFRAESTRUTURA'] 
     }
 
 # --- Funções para Renderizar as Páginas ("Fases") ---
 
 def show_introduction():
     """Exibe a página de introdução."""
-    st.title("Plataforma de Diagnóstico para Expansão da EJA")
+    st.title("Plataforma de Diagnóstico para Expansão da Educação Profissionalizante")
     st.subheader("Instituto Alpargatas")
     st.markdown("""
         Bem-vindo à ferramenta de Business Intelligence (BI) do Instituto Alpargatas, projetada para apoiar a tomada de decisão estratégica na expansão da Educação de Jovens e Adultos (EJA).
@@ -390,7 +417,7 @@ def show_fase4(df_vulnerability, df_economic, df_courses):
         
         with col1:
             st.markdown("**Matriz Econômica Local**")
-            fig_eco = px.pie(df_eco_mun, names='setor', values='percentual_vagas',
+            fig_eco = px.pie(df_eco_mun, names='setor', values='vagas',
                              title=f"Setores Empregadores", hole=0.4,
                              color_discrete_sequence=px.colors.sequential.Oranges_r)
             fig_eco.update_traces(textinfo='percent+label', showlegend=False)
@@ -398,7 +425,7 @@ def show_fase4(df_vulnerability, df_economic, df_courses):
             
         with col2:
             st.markdown("**Alinhamento Estratégico e Recomendações**")
-            top_setores = df_eco_mun.sort_values('percentual_vagas', ascending=False).head(3)['setor'].tolist()
+            top_setores = df_eco_mun.sort_values('vagas', ascending=False).head(3)['setor'].tolist()
             mapping = get_sector_to_eixo_mapping()
             eixos_recomendados = list(set([eixo for setor in top_setores for eixo in mapping.get(setor, [])]))
             
@@ -429,23 +456,28 @@ def show_fase4(df_vulnerability, df_economic, df_courses):
 
 # Aplicar o estilo visual
 apply_custom_css()
+######
 
-# Carregar todos os dados no início
 df_vulnerability = load_vulnerability_data()
 df_courses = load_courses_data()
 
-rais_file_path = 'file_path_rais.xlsx'
+# --- INÍCIO DA MODIFICAÇÃO ---
+# ATENÇÃO: Crie uma pasta 'dados' ao lado do seu script e coloque o arquivo da RAIS nela.
+# O nome do arquivo deve ser 'rais_dados_economicos.xlsx' ou você deve alterar o nome abaixo.
+rais_file_path = 'tabelas-rais-2024-parcial.xlsx'
 df_economic = load_rais_economic_data(rais_file_path)
 
+
+#######
 # Configuração da Barra Lateral (Sidebar)
 with st.sidebar:
     try:
         # Certifique-se de que o arquivo 'logo_IA.png' está na mesma pasta do seu script
-        st.image("logo_IA.png", use_column_width=True)
+        st.image("logo_IA.png", use_container_width =True)
     except Exception as e:
         st.warning("Arquivo 'logo_IA.png' não encontrado. A logo não será exibida.")
     
-    st.markdown("## **BI de Diagnóstico EJA**")
+    st.markdown("## **BI de Diagnóstico da Educação Profissionalizante**")
     st.markdown("Plataforma de Análise Estratégica")
     st.markdown("---")
     
@@ -472,4 +504,3 @@ elif selecao == "Fase 3: Análise de Maturidade Institucional":
     show_fase3(df_vulnerability)
 elif selecao == "Fase 4: Alinhamento Estratégico de Cursos":
     show_fase4(df_vulnerability, df_economic, df_courses)
-
