@@ -5,3 +5,13 @@ folium
 streamlit-folium
 Pillow
 openpyxl
+unicodedata
+re
+matplotlib 
+matplotlib.pyplot 
+numpy
+sklearn.preprocessing
+sklearn.cluster
+scipy.stats
+matplotlib.ticker
+seaborn
