@@ -5,9 +5,3 @@ folium
 streamlit-folium
 Pillow
 openpyxl
-unicodedata
-re
-matplotlib 
-numpy
-sklearn
-seaborn
