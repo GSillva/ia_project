@@ -44,7 +44,9 @@ Após rodar, acesse o link indicado no terminal (geralmente `http://127.0.0.1:80
 ## ▶️ Acesso aos dados de: RAIS.py, ideb_f.py, caged_f
 
 '''
-As bases de dados que eles solicitam devem estar em uma pasta data conforme especificado no código, bases não foram possíveis de serem carregadas nesse repositório
+As bases de dados que eles solicitam devem estar em uma pasta 'data' conforme especificado no código, bases não foram possíveis de serem carregadas nesse repositório.
+
+Para rodar os códigos faça no terminal: python código.py
 '''
 ## 📂 Estrutura dos Arquivos
 
@@ -52,7 +54,7 @@ As bases de dados que eles solicitam devem estar em uma pasta data conforme espe
 * **`analise_educacional.py`** → Script com análises exploratórias de dados educacionais.
 * **`RAIS.py`** → Processamento e análise de dados da RAIS (Relação Anual de Informações Sociais).
 * **`ideb_f.py`** → Análises relacionadas ao IDEB junto ao Instituto IA.
-* * **`ideb_f.py`** → Análises relacionadas a programas de formação tecnica do Instituto IA.
+* **`caged_f.py`** → Análises relacionadas a programas de formação tecnica do Instituto IA.
 * **`buscar_cursos.py`** → Script para buscar e organizar informações sobre cursos.
 * **`Alpargatas.ipynb`** → Notebook Jupyter com experimentações e análises adicionais.
 * **Arquivos de dados (`.csv`, `.xlsx`)** → Bases utilizadas nas análises e no dashboard.
