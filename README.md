@@ -34,7 +34,7 @@ Este repositório contém um conjunto de análises e um dashboard interativo des
 O dashboard principal foi desenvolvido em Python, utilizando bibliotecas de análise de dados e visualização.
 
 ```bash
-python dashboard_alpargatas.py
+streamlit run dashboard_alpargatas.py
 ```
 
 Após rodar, acesse o link indicado no terminal (geralmente `http://127.0.0.1:8050/`) para visualizar o dashboard no navegador.
